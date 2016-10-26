@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+	<dict>
+		<key>itemImage</key>
+		<string>camera-polaroid</string>
+	</dict>
+	<dict>
+		<key>itemImage</key>
+		<string>1476593904_suitcase</string>
+	</dict>
+	<dict>
+		<key>itemImage</key>
+		<string>1476593888_shrimp</string>
+	</dict>
+	<dict>
+		<key>itemImage</key>
+		<string>1476593854_waves</string>
+	</dict>
+	<dict>
+		<key>itemImage</key>
+		<string>1476593865_mountains</string>
+	</dict>
+	<dict>
+		<key>itemImage</key>
+		<string>1476593877_ship</string>
+	</dict>
+</array>
+</plist>
