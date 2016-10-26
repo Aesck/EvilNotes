@@ -12,17 +12,14 @@ import CoreLocation
 class ViewController: UIViewController{
     
     @IBOutlet weak var notesTable   : UITableView!
-    var cellTitle  : String = ""
-    var lat        : String = ""
-    var long       : String = ""
-    
-    
+    var cellTitle       : String = "";
+    var myLocationManager : CLLocationManager = CLLocationManager()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupTableView()
         setupNavigationBar()
-        
+        self.initLocationManager()
     }
     
     private func setupTableView() {
@@ -46,19 +43,6 @@ class ViewController: UIViewController{
         self.performSegue(withIdentifier: "noteDetails", sender: nil)
     }
     
-    @IBAction func showNoteLocation(sender: AnyObject){
-        
-        let button          = sender as! UIButton
-        let locationElement = button.tag
-        let cellForMap      = notesTable.cellForRow(at: IndexPath.init(row: locationElement, section: 0)) as! EvilNoteTableViewCell
-        
-        let json    = getContentOfFile(fileTitle: cellForMap.titleLabel.text!)
-        self.lat    = json["latitude"]!
-        self.long   = json["longitude"]!
-        self.performSegue(withIdentifier: "showMap", sender: nil)
-        
-    }
-    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
     }
@@ -69,16 +53,6 @@ class ViewController: UIViewController{
                 let evilNoteDetail = segue.destination as! EvilNoteDetailVC
                 evilNoteDetail.fileTitle = cellTitle
             }
-        }
-        
-        if segue.identifier == "showMap"{
-            if segue.destination is MKLocationVC {
-                let locationDetail = segue.destination as! MKLocationVC
-                locationDetail.noteLatitude     = self.lat
-                locationDetail.noteLongitude    = self.long
-            }
-            
-        
         }
     }
     
@@ -104,7 +78,7 @@ class ViewController: UIViewController{
             let directoryContents = try fm.contentsOfDirectory(atPath: documentsUrl[0].path)
             var notesTitles : [String] = []
             for fileName in directoryContents {
-                if !(fileName == "EvilNote.json" || fileName == ".EvilNote.json.swp") {
+                if !(fileName == "EvilNote.json" || fileName == ".EvilNote.json.swp" || fileName.contains(".JPG") || fileName.contains(".PNG")) {
                     let noteTitle = fileName.characters.split(separator: ".").map(String.init)
                     print(noteTitle[0])
                     notesTitles.append(noteTitle[0])
@@ -213,28 +187,59 @@ extension ViewController : UITableViewDataSource {
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "noteCell") as! EvilNoteTableViewCell
         
-        if indexPath.row % 2 == 0 {
-            cell.cellImage.image = UIImage(named: "1476593888_shrimp")
-        } else {
-            cell.cellImage.frame = CGRect(x: 0, y: 0, width: 0, height: 0)
-        }
-        
-        
         let titles = getTitles()
+        let jsonContent = getContentOfFile(fileTitle: titles[indexPath.row]);
         
-        let json = getContentOfFile(fileTitle: titles[indexPath.row])
+        let preview = NSString(string: jsonContent["content"]!)
+            .replacingOccurrences(of: "\n", with: ". ") as NSString
         
-        let preview = (NSString.init(string: json["content"]!)).replacingOccurrences(of: "\n", with: ". ") as NSString
         if preview.length > 0
         {
             cell.previewLabel.text = preview.substring(with: NSRange(location: 0, length: preview.length > 200 ? 200 : preview.length))
         }
+        
         cell.titleLabel.text = titles[indexPath.row]
+        
+        
+        //cell.cellImage.image = #imageLiteral(resourceName: "write")
+        
+//        if let imageName = jsonContent["image"] {
+//            // File Manager
+//            let fm = FileManager.default
+//            // get the documents urls.
+//            let documentsUrl = fm.urls(for: .documentDirectory, in: .userDomainMask)
+//            // get the file path as a url.
+//            let imagePath = documentsUrl[0].appendingPathComponent("\(imageName)")
+//            
+//            if let savedImage = UIImage(contentsOfFile: imagePath.path) {
+//                cell.cellImage.frame = CGRect.init(origin: CGPoint(x:0,y:0), size: CGSize(width: 70, height: 70))
+//                cell.cellImage.contentMode = .scaleAspectFit
+//                cell.cellImage.image = savedImage
+//            }
+//        }
+        
+        if jsonContent.keys.contains("image") {
+            let imageName = jsonContent["image"]
+            let fm = FileManager.default
+            // get the documents urls.
+            let documentsUrl = fm.urls(for: .documentDirectory, in: .userDomainMask)
+            // get the file path as a url.
+            let imagePath = documentsUrl[0].appendingPathComponent("\(imageName!)")
+            
+            let savedImage = UIImage(contentsOfFile: imagePath.path)
+            
+//            if let savedImage = UIImage(contentsOfFile: imagePath.path) {
+            cell.cellImage.image = savedImage
+//            cell.cellImage.contentMode = .scaleAspectFit
+//            } else {
+//                cell.cellImage.frame = CGRect.init(x: 0, y: 0, width: 0, height: 0)
+//            }
+        } else {
+            cell.cellImage.frame = CGRect.init(x: 0, y: 0, width: 0, height: 0)
+        }
         
         tableView.rowHeight = UITableViewAutomaticDimension
         tableView.estimatedRowHeight = 200
-        
-        cell.mapButton.tag = indexPath.row
 
         return cell
     }
@@ -264,7 +269,7 @@ extension ViewController : UITableViewDataSource {
         return [String]()
     }
     
-    func getContentOfFile(fileTitle : String) -> [String: String] {
+    func getContentOfFile(fileTitle : String) -> [String:String] {
         // file manager.
         let fm = FileManager.default
         // get the documents urls.
@@ -288,7 +293,7 @@ extension ViewController : UITableViewDataSource {
             print(error.localizedDescription)
         }
         
-        return [String: String]()
+        return [String:String]()
     }
     
     private func getNumberOfItems() -> Int {
@@ -344,7 +349,42 @@ extension ViewController : UITableViewDataSource {
     
 }
 
-
+extension ViewController : CLLocationManagerDelegate {
+    
+    func initLocationManager() {
+        self.myLocationManager.delegate = self
+        self.verifyLocationPermission(status: nil)
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        self.verifyLocationPermission(status: status)
+    }
+    
+    func verifyLocationPermission(status: CLAuthorizationStatus?) {
+        var currentStatus : CLAuthorizationStatus
+        if status != nil {
+            currentStatus = status!
+        } else {
+            currentStatus = CLLocationManager.authorizationStatus()
+        }
+        
+        switch currentStatus {
+        case .notDetermined:
+            print("Not determine")
+            self.myLocationManager.requestWhenInUseAuthorization()
+        case .denied:
+            print("Denegate")
+        case .authorizedAlways:
+            print("Always authorize")
+        case .authorizedWhenInUse:
+            print("When in use")
+            self.myLocationManager.startUpdatingLocation()
+        case .restricted:
+            print("Restricted")
+        }
+    }
+    
+}
 
 
 
